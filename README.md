@@ -1,46 +1,89 @@
-# Getting Started with Create React App
+# EmoTrack 🎭
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+> A privacy-first emotion tracking system for remote teams
 
-## Available Scripts
+EmoTrack helps remote teams maintain emotional intelligence and prevent burnout by providing real-time emotion detection and analytics. All video processing happens in the browser - no video data is ever transmitted to servers.
 
-In the project directory, you can run:
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![React](https://img.shields.io/badge/React-18-blue.svg)
+![TypeScript](https://img.shields.io/badge/TypeScript-4.9-blue.svg)
+![Firebase](https://img.shields.io/badge/Firebase-9-orange.svg)
 
-### `npm start`
+## ✨ Features
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+### For Employees
+- **Real-Time Emotion Detection**: Webcam-based emotion tracking using face-api.js
+- **Personal Dashboard**: View your emotion history with interactive charts
+- **Privacy-First**: All processing happens in your browser - no video transmission
+- **Break Reminders**: Get notified when sustained stress is detected
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+### For Managers
+- **Team Analytics**: Aggregated, anonymous emotion data for the entire team
+- **Date Range Filtering**: Analyze trends over specific time periods
+- **Burnout Prevention**: Early warning signs of team stress
+- **Privacy-Respecting**: No individual tracking - only aggregate data
 
-### `npm test`
+## 🚀 Quick Start
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Prerequisites
 
-### `npm run build`
+- Node.js 16+ and npm
+- A Firebase project (free tier works fine)
+- A modern web browser with webcam access
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### Installation
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/ardaekici23/EmoTrack.git
+   cd emotrack
+   ```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-### `npm run eject`
+3. **Set up Firebase** - Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+4. **Configure environment variables**
+   ```bash
+   cp .env.local.example .env.local
+   # Edit .env.local with your Firebase credentials
+   ```
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+5. **Start the development server**
+   ```bash
+   npm start
+   ```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+   Open [http://localhost:3000](http://localhost:3000)
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+## 📖 Full Documentation
 
-## Learn More
+See the complete setup guide, Firebase configuration, security rules, and deployment instructions at:
+**[https://github.com/ardaekici23/EmoTrack](https://github.com/ardaekici23/EmoTrack)**
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## 🏗️ Tech Stack
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+- React 18 + TypeScript
+- Firebase (Auth + Firestore)
+- face-api.js (browser-based emotion detection)
+- Recharts (data visualization)
+- React Router v6
+
+## 🔒 Privacy
+
+- ✅ All emotion detection happens in the browser
+- ✅ Only emotion labels + timestamps are stored
+- ✅ No video data is ever transmitted
+- ✅ Anonymous team analytics
+- ✅ Role-based access control
+
+## 📧 Contact
+
+GitHub: [@ardaekici23](https://github.com/ardaekici23)
+
+---
+
+Built with ❤️ using Create React App
