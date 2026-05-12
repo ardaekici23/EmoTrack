@@ -1,0 +1,13 @@
+services:
+  emotrack:
+    build:
+      context: .
+      target: dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+    env_file:
+      - .env.local
+    stdin_open: true
