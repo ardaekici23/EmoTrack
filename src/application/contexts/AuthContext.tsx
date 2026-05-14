@@ -1,18 +1,17 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User as FirebaseUser } from 'firebase/auth';
+import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { User } from '../../domain/user/types';
-import { onAuthChange, getCurrentUser } from '../../infrastructure/firebase/auth';
+import { getCurrentUser } from '../../infrastructure/api/auth';
 
 interface AuthContextType {
   currentUser: User | null;
-  firebaseUser: FirebaseUser | null;
   loading: boolean;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   currentUser: null,
-  firebaseUser: null,
   loading: true,
+  refreshUser: async () => {},
 });
 
 export function useAuth(): AuthContextType {
@@ -21,27 +20,18 @@ export function useAuth(): AuthContextType {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    return onAuthChange(async (fbUser) => {
-      setFirebaseUser(fbUser);
-      if (fbUser) {
-        try {
-          setCurrentUser(await getCurrentUser());
-        } catch {
-          setCurrentUser(null);
-        }
-      } else {
-        setCurrentUser(null);
-      }
-      setLoading(false);
-    });
+  const refreshUser = useCallback(async () => {
+    setCurrentUser(await getCurrentUser());
   }, []);
 
+  useEffect(() => {
+    refreshUser().finally(() => setLoading(false));
+  }, [refreshUser]);
+
   return (
-    <AuthContext.Provider value={{ currentUser, firebaseUser, loading }}>
+    <AuthContext.Provider value={{ currentUser, loading, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

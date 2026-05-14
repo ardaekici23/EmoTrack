@@ -1,12 +1,12 @@
-import { logEmotion } from '../../infrastructure/firebase/emotionLogs';
+import { logEmotion } from '../../infrastructure/api/emotionLogs';
 import { EmotionPrediction } from './types';
 import { MODEL_CONFIG } from '../../shared/constants';
 
-export async function saveEmotionLog(userId: string, prediction: EmotionPrediction): Promise<void> {
+export async function saveEmotionLog(userId: string, prediction: EmotionPrediction, eventId?: string): Promise<void> {
   if (!prediction.faceDetected) return;
   if (prediction.confidence < MODEL_CONFIG.MIN_CONFIDENCE_THRESHOLD) return;
   try {
-    await logEmotion(userId, prediction.dominantEmotion, prediction.confidence, prediction.allScores);
+    await logEmotion(userId, prediction.dominantEmotion, prediction.confidence, prediction.allScores, eventId);
   } catch (error) {
     console.error('Failed to save emotion log:', error);
   }

@@ -7,7 +7,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
-  teamId: string;
+  teamId: string | null;
   createdAt: Date;
 }
 
@@ -21,7 +21,7 @@ export interface SignUpData {
   password: string;
   name: string;
   role: UserRole;
-  teamId: string;
+  teamId?: string;
 }
 
 export interface SignInData {

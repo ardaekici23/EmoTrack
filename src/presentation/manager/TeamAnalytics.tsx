@@ -4,6 +4,7 @@ import {
 } from 'recharts';
 import { EmotionLog } from '../../domain/emotion/types';
 import { EMOTION_LABELS, EMOTION_COLORS } from '../../shared/constants';
+import { MoodTrendChart } from './MoodTrendChart';
 
 const POSITIVE_EMOTIONS = new Set(['Happy', 'Surprised']);
 const NEGATIVE_EMOTIONS = new Set(['Angry', 'Disgusted', 'Fearful', 'Sad']);
@@ -99,6 +100,8 @@ export function TeamAnalytics({ logs }: TeamAnalyticsProps) {
           ({pct(negativeCount)}%). Consider checking in with team members or scheduling team-building activities.
         </div>
       )}
+
+      <MoodTrendChart logs={logs} />
     </div>
   );
 }

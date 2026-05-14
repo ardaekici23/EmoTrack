@@ -1,6 +1,7 @@
 import React, { useState, FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { signIn } from '../../infrastructure/firebase/auth';
+import { signIn } from '../../infrastructure/api/auth';
+import { useAuth } from '../../application/contexts/AuthContext';
 import { ROUTES } from '../../shared/constants';
 
 export function Login() {
@@ -9,6 +10,7 @@ export function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -16,6 +18,7 @@ export function Login() {
     try {
       setError(''); setLoading(true);
       const user = await signIn({ email, password });
+      await refreshUser();
       navigate(user.role === 'manager' ? ROUTES.MANAGER_DASHBOARD : ROUTES.EMPLOYEE_DASHBOARD);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to sign in');

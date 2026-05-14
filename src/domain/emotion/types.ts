@@ -13,10 +13,12 @@ export interface EmotionScores {
 export interface EmotionLog {
   logId: string;
   userId: string;
+  userName?: string | null;
   timestamp: Date;
   dominantEmotion: EmotionLabel;
   confidenceScore: number;
   allScores?: EmotionScores;
+  eventId?: string | null;
 }
 
 export interface EmotionPrediction {

@@ -1,6 +1,7 @@
 import React, { useState, FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { signUp } from '../../infrastructure/firebase/auth';
+import { signUp } from '../../infrastructure/api/auth';
+import { useAuth } from '../../application/contexts/AuthContext';
 import { UserRole } from '../../domain/user/types';
 import { ROUTES, USER_ROLES } from '../../shared/constants';
 
@@ -14,16 +15,18 @@ export function Signup() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!name || !email || !password || !teamId) { setError('Please fill in all fields'); return; }
+    if (!name || !email || !password) { setError('Please fill in all fields'); return; }
     if (password !== confirmPassword) { setError('Passwords do not match'); return; }
     if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
 
     try {
       setError(''); setLoading(true);
       const user = await signUp({ name, email, password, role, teamId });
+      await refreshUser();
       navigate(user.role === 'manager' ? ROUTES.MANAGER_DASHBOARD : ROUTES.EMPLOYEE_DASHBOARD);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to sign up');
@@ -69,11 +72,14 @@ export function Signup() {
               <option value={USER_ROLES.MANAGER}>Manager</option>
             </select>
           </div>
-          <div className="form-group">
-            <label htmlFor="teamId">Team ID</label>
-            <input type="text" id="teamId" value={teamId} onChange={e => setTeamId(e.target.value)}
-              placeholder="Enter your team identifier" required disabled={loading} />
-          </div>
+          {role === 'employee' && (
+            <div className="form-group">
+              <label htmlFor="teamId">Team Code <span style={{ fontWeight: 'normal', color: 'var(--text-secondary)' }}>(optional)</span></label>
+              <input type="text" id="teamId" value={teamId} onChange={e => setTeamId(e.target.value)}
+                placeholder="UUID provided by your manager" disabled={loading} />
+              <span className="form-hint">Optional — you can also enter this later from your dashboard.</span>
+            </div>
+          )}
           <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? 'Creating account...' : 'Sign Up'}
           </button>

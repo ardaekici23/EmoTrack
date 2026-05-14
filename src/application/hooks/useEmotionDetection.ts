@@ -30,6 +30,13 @@ export function useEmotionDetection(): UseEmotionDetectionResult {
       .catch((err: Error) => { setError(err.message || 'Failed to load models'); setIsLoading(false); });
   }, []);
 
+  // Connect the stream to the video element after isActive=true renders it into the DOM
+  useEffect(() => {
+    if (!isActive || !videoRef.current || !streamRef.current) return;
+    videoRef.current.srcObject = streamRef.current;
+    videoRef.current.play().catch(() => {});
+  }, [isActive]);
+
   const stopDetection = useCallback(() => {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
     if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null; }
@@ -45,18 +52,10 @@ export function useEmotionDetection(): UseEmotionDetectionResult {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: FACE_API_CONFIG.VIDEO_SIZE.width, height: FACE_API_CONFIG.VIDEO_SIZE.height },
       });
+      // Save stream — the useEffect above will connect it to videoRef once isActive triggers a re-render
       streamRef.current = stream;
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await new Promise<void>(resolve => {
-          if (videoRef.current) {
-            videoRef.current.onloadedmetadata = () => { videoRef.current?.play(); resolve(); };
-          }
-        });
-      }
-
       setIsActive(true);
+
       intervalRef.current = window.setInterval(async () => {
         if (videoRef.current && isVideoReady(videoRef.current)) {
           try { setPrediction(await predictEmotion(videoRef.current)); } catch { /* non-fatal */ }

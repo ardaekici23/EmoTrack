@@ -1,25 +1,42 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../application/contexts/AuthContext';
-import { getTeamEmotionLogs } from '../../infrastructure/firebase/emotionLogs';
+import { getTeamEmotionLogs, getTeamAlerts, AlertResponse } from '../../infrastructure/api/emotionLogs';
+import { getMyTeams } from '../../infrastructure/api/teams';
 import { EmotionLog } from '../../domain/emotion/types';
+import { Team } from '../../domain/team/types';
 import { TeamAnalytics } from './TeamAnalytics';
+import { UserAnalytics } from './UserAnalytics';
 import { DateRangeFilter } from './DateRangeFilter';
+import { TeamManagement } from './TeamManagement';
+import { EventManagement } from './EventManagement';
+
+type Tab = 'analytics' | 'teams' | 'events';
 
 export function ManagerDashboard() {
   const { currentUser } = useAuth();
+  const [activeTab, setActiveTab] = useState<Tab>('analytics');
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [analyticsView, setAnalyticsView] = useState<'team' | 'users'>('team');
   const [logs, setLogs] = useState<EmotionLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
+  const [alertData, setAlertData] = useState<AlertResponse | null>(null);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (activeTab !== 'analytics') return;
+    getMyTeams().then(setTeams).catch(() => {});
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!currentUser || activeTab !== 'analytics') return;
 
     async function fetchTeamLogs() {
       try {
         setLoading(true);
-        const teamLogs = await getTeamEmotionLogs(currentUser!.teamId, startDate, endDate);
+        const teamLogs = await getTeamEmotionLogs('', startDate, endDate, selectedTeamId ?? undefined);
         setLogs(teamLogs);
         setError(null);
       } catch (err: unknown) {
@@ -32,69 +49,121 @@ export function ManagerDashboard() {
     fetchTeamLogs();
     const interval = setInterval(fetchTeamLogs, 60000);
     return () => clearInterval(interval);
-  }, [currentUser, startDate, endDate]);
+  }, [currentUser, startDate, endDate, activeTab, selectedTeamId]);
+
+  useEffect(() => {
+    if (activeTab !== 'analytics') return;
+    const fetchAlerts = () =>
+      getTeamAlerts(2, 50, selectedTeamId ?? undefined).then(setAlertData).catch(() => {});
+    fetchAlerts();
+    const id = setInterval(fetchAlerts, 60000);
+    return () => clearInterval(id);
+  }, [activeTab, selectedTeamId]);
 
   function handleFilterChange(start: Date | undefined, end: Date | undefined) {
     setStartDate(start);
     setEndDate(end);
   }
 
-  if (loading) {
-    return (
-      <div className="manager-dashboard loading">
-        <div className="loading-spinner"></div>
-        <p>Loading team analytics...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="manager-dashboard error">
-        <div className="error-message">{error}</div>
-      </div>
-    );
-  }
+  const selectedTeamName = selectedTeamId
+    ? teams.find(t => t.teamId === selectedTeamId)?.name ?? 'Selected Team'
+    : 'All Teams';
 
   return (
     <div className="manager-dashboard">
       <div className="dashboard-header">
-        <h1>Team Analytics Dashboard</h1>
-        <p className="dashboard-subtitle">
-          Monitor your team's emotional well-being - Team: <strong>{currentUser?.teamId}</strong>
-        </p>
+        <h1>Manager Dashboard</h1>
+        <p className="dashboard-subtitle">Welcome, <strong>{currentUser?.name}</strong></p>
       </div>
 
-      <section className="filter-section">
-        <h2>Filter Data</h2>
-        <DateRangeFilter onFilterChange={handleFilterChange} />
-      </section>
+      <nav className="tab-nav">
+        <button className={`tab-btn ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => setActiveTab('analytics')}>
+          Team Analytics
+          {alertData?.anyAlerting && <span className="alert-badge" />}
+        </button>
+        <button className={`tab-btn ${activeTab === 'teams' ? 'active' : ''}`} onClick={() => setActiveTab('teams')}>
+          Team Management
+        </button>
+        <button className={`tab-btn ${activeTab === 'events' ? 'active' : ''}`} onClick={() => setActiveTab('events')}>
+          Events
+        </button>
+      </nav>
 
-      <section className="analytics-section">
-        <h2>Team Emotion Analytics</h2>
-        <TeamAnalytics logs={logs} />
-      </section>
+      <div className="tab-content">
+        {activeTab === 'analytics' && (
+          <>
+            {alertData?.anyAlerting && (
+              <div className="alert alert-danger">
+                <strong>Mood Alert — </strong>
+                {alertData.alerts
+                  .filter(a => a.alerting)
+                  .map(a => `${a.teamName}: ${a.negativePct}% negative in the last ${alertData.hours}h (${a.sampleCount} samples)`)
+                  .join(' · ')}
+              </div>
+            )}
 
-      <div className="dashboard-info">
-        <div className="info-card">
-          <h3>About Team Analytics</h3>
-          <ul>
-            <li>View aggregated emotion data from all team members</li>
-            <li>Filter data by date range to analyze trends</li>
-            <li>Individual employee data is anonymized for privacy</li>
-            <li>Use insights to support team well-being and prevent burnout</li>
-          </ul>
-        </div>
+            {teams.length > 1 && (
+              <div className="team-switcher">
+                <span className="team-switcher-label">Viewing:</span>
+                <button
+                  className={`team-switcher-btn ${selectedTeamId === null ? 'active' : ''}`}
+                  onClick={() => setSelectedTeamId(null)}
+                >
+                  All Teams
+                </button>
+                {teams.map(team => (
+                  <button
+                    key={team.teamId}
+                    className={`team-switcher-btn ${selectedTeamId === team.teamId ? 'active' : ''}`}
+                    onClick={() => setSelectedTeamId(team.teamId)}
+                  >
+                    {team.name}
+                  </button>
+                ))}
+              </div>
+            )}
 
-        <div className="info-card tips">
-          <h3>Interpreting the Data</h3>
-          <ul>
-            <li><strong>High negative emotions:</strong> May indicate stress or burnout</li>
-            <li><strong>Low detection count:</strong> Team members may not be using the system regularly</li>
-            <li><strong>Trends over time:</strong> Look for patterns in specific time periods or days</li>
-            <li><strong>Balance is key:</strong> A mix of emotions is normal — focus on sustained negative trends</li>
-          </ul>
-        </div>
+            {loading ? (
+              <div className="manager-dashboard loading">
+                <div className="loading-spinner" />
+                <p>Loading team analytics...</p>
+              </div>
+            ) : error ? (
+              <div className="manager-dashboard error">
+                <div className="error-message">{error}</div>
+              </div>
+            ) : (
+              <>
+                <section className="filter-section">
+                  <h2>Filter Data</h2>
+                  <DateRangeFilter onFilterChange={handleFilterChange} />
+                </section>
+                <section className="analytics-section">
+                  <div className="analytics-section-header">
+                    <h2>{selectedTeamName} — Emotion Analytics</h2>
+                    <div className="view-toggle">
+                      <button
+                        className={`view-toggle-btn ${analyticsView === 'team' ? 'active' : ''}`}
+                        onClick={() => setAnalyticsView('team')}
+                      >
+                        Team Overview
+                      </button>
+                      <button
+                        className={`view-toggle-btn ${analyticsView === 'users' ? 'active' : ''}`}
+                        onClick={() => setAnalyticsView('users')}
+                      >
+                        Per User
+                      </button>
+                    </div>
+                  </div>
+                  {analyticsView === 'team' ? <TeamAnalytics logs={logs} /> : <UserAnalytics logs={logs} />}
+                </section>
+              </>
+            )}
+          </>
+        )}
+        {activeTab === 'teams' && <TeamManagement />}
+        {activeTab === 'events' && <EventManagement />}
       </div>
     </div>
   );

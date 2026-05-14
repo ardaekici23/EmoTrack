@@ -3,7 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import { useAuth } from '../../application/contexts/AuthContext';
-import { getUserEmotionHistory } from '../../infrastructure/firebase/emotionLogs';
+import { getUserEmotionHistory } from '../../infrastructure/api/emotionLogs';
 import { EmotionLog } from '../../domain/emotion/types';
 import { EMOTION_COLORS } from '../../shared/constants';
 
