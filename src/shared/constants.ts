@@ -46,14 +46,34 @@ export const ROUTES = {
   UNAUTHORIZED: '/unauthorized',
 };
 
+/**
+ * EMOTION_COLORS — used for chart lines (Recharts) only.
+ * These are semantic stroke colours that work on both light and dark chart backgrounds.
+ * For badges and UI elements use CSS classes (emotion-Happy, emotion-Sad, …) with
+ * the --emotion-* CSS custom properties defined in App.css.
+ */
 export const EMOTION_COLORS: Record<EmotionLabel, string> = {
-  Angry: '#ff4444',
-  Disgusted: '#9c27b0',
-  Fearful: '#ff9800',
-  Happy: '#4caf50',
-  Neutral: '#2196f3',
-  Sad: '#607d8b',
-  Surprised: '#ffeb3b',
+  Happy:     '#15803D',
+  Neutral:   '#6B7280',
+  Sad:       '#1D4ED8',
+  Angry:     '#B42318',
+  Disgusted: '#7C3AED',
+  Fearful:   '#B54708',
+  Surprised: '#C2410C',
+};
+
+/**
+ * EMOTION_CLASS_NAME — maps each emotion to the CSS modifier class
+ * applied to .emotion-badge and .emotion-badge-sm elements.
+ */
+export const EMOTION_CLASS_NAME: Record<EmotionLabel, string> = {
+  Happy:     'emotion-Happy',
+  Neutral:   'emotion-Neutral',
+  Sad:       'emotion-Sad',
+  Angry:     'emotion-Angry',
+  Disgusted: 'emotion-Disgusted',
+  Fearful:   'emotion-Fearful',
+  Surprised: 'emotion-Surprised',
 };
 
 export const DATE_RANGE_PRESETS = {
