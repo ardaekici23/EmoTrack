@@ -187,9 +187,8 @@ function UserBreakdown({ logs }: { logs: EmotionLog[] }) {
       <div className="card-head">
         <div>
           <div className="section-title">Per-person breakdown</div>
-          <div className="section-sub">Anonymised individual readings — identifiers hidden by default</div>
+          <div className="section-sub">Individual readings per team member</div>
         </div>
-        <button className="btn btn-link btn-sm">Reveal names</button>
       </div>
       <div className="card-body">
         <div className="stack stack-3">
@@ -209,9 +208,9 @@ function UserBreakdown({ logs }: { logs: EmotionLog[] }) {
                     <span className="mono" style={{ fontSize: 11, color: 'var(--text-faint)', width: 24 }}>
                       {String(i + 1).padStart(2, '0')}
                     </span>
-                    <Avatar initials={`P${i + 1}`} size={30} />
+                    <Avatar initials={u.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()} size={30} />
                     <div>
-                      <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text)' }}>Anonymous {String.fromCharCode(65 + i)}</div>
+                      <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text)' }}>{u.name}</div>
                       <div style={{ fontSize: 11.5, color: 'var(--text-faint)' }}>
                         {u.total} detections · avg conf {((u.conf / u.total) * 100).toFixed(0)}%
                       </div>
