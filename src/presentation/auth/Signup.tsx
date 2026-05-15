@@ -1,9 +1,10 @@
 import React, { useState, FormEvent } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { signUp } from '../../infrastructure/api/auth';
 import { useAuth } from '../../application/contexts/AuthContext';
 import { UserRole } from '../../domain/user/types';
 import { ROUTES, USER_ROLES } from '../../shared/constants';
+import { Icon } from '../shared/Icons';
 
 export function Signup() {
   const [name, setName] = useState('');
@@ -11,7 +12,7 @@ export function Signup() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState<UserRole>('employee');
-  const [teamId, setTeamId] = useState('');
+  const [teamCode, setTeamCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -22,10 +23,9 @@ export function Signup() {
     if (!name || !email || !password) { setError('Please fill in all fields'); return; }
     if (password !== confirmPassword) { setError('Passwords do not match'); return; }
     if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
-
     try {
       setError(''); setLoading(true);
-      const user = await signUp({ name, email, password, role, teamId });
+      const user = await signUp({ name, email, password, role, teamId: teamCode || undefined });
       await refreshUser();
       navigate(user.role === 'manager' ? ROUTES.MANAGER_DASHBOARD : ROUTES.EMPLOYEE_DASHBOARD);
     } catch (err: unknown) {
@@ -36,58 +36,132 @@ export function Signup() {
   }
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <h2>Sign Up for EmoTrack</h2>
-        <p className="auth-subtitle">Create your account to get started</p>
+    <div className="auth-shell">
+      <div className="auth-canvas">
+        <div className="auth-brand">
+          <div className="auth-brand-logo">E</div>
+          <span>EmoTrack</span>
+        </div>
 
-        {error && <div className="error-message">{error}</div>}
+        <div className="auth-hero">
+          <div>
+            <div className="auth-hero-title">Unlock your remote team's potential &amp; happiness with EmoTrack.</div>
+            <div className="auth-hero-body" style={{ marginTop: 16 }}>
+              Stay connected, measure mood, improve collaboration, and boost performance. The ultimate toolkit for modern distributed teams.
+            </div>
+          </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="name">Full Name</label>
-            <input type="text" id="name" value={name} onChange={e => setName(e.target.value)}
-              placeholder="Enter your full name" required disabled={loading} />
+          <div className="stack stack-4">
+            <div className="auth-feature">
+              <div className="auth-feature-icon"><Icon.Smile /></div>
+              <div>
+                <div className="auth-feature-title">Daily mood check-ins</div>
+                <div className="auth-feature-desc">Detection runs in the browser, never on a server.</div>
+              </div>
+            </div>
+            <div className="auth-feature">
+              <div className="auth-feature-icon"><Icon.Network /></div>
+              <div>
+                <div className="auth-feature-title">Collaboration analytics</div>
+                <div className="auth-feature-desc">Measure engagement across remote and hybrid teams.</div>
+              </div>
+            </div>
+            <div className="auth-feature">
+              <div className="auth-feature-icon"><Icon.TrendUp /></div>
+              <div>
+                <div className="auth-feature-title">Performance insights</div>
+                <div className="auth-feature-desc">Privacy-respecting aggregate signals and trends.</div>
+              </div>
+            </div>
           </div>
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input type="email" id="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="Enter your work email" required disabled={loading} />
+
+          <div className="auth-legal">© 2026 EmoTrack, Inc. · Privacy · Terms · DPA</div>
+        </div>
+      </div>
+
+      <div className="auth-panel">
+        <div className="auth-panel-head">
+          <div className="auth-panel-title">Create your account</div>
+          <div className="auth-panel-sub">Choose your role to set up your workspace.</div>
+        </div>
+
+        {error && <div className="error-banner">{error}</div>}
+
+        <form className="stack stack-4" onSubmit={handleSubmit}>
+          <div className="field">
+            <label>Your role</label>
+            <div className="role-pick">
+              <div
+                className={`role-pick-option ${role === USER_ROLES.EMPLOYEE ? 'selected' : ''}`}
+                onClick={() => setRole(USER_ROLES.EMPLOYEE)}
+              >
+                <div className="role-pick-label">Employee</div>
+                <div className="role-pick-desc">Track your own emotions and view personal history</div>
+              </div>
+              <div
+                className={`role-pick-option ${role === USER_ROLES.MANAGER ? 'selected' : ''}`}
+                onClick={() => setRole(USER_ROLES.MANAGER)}
+              >
+                <div className="role-pick-label">Manager</div>
+                <div className="role-pick-desc">View aggregate analytics for your team</div>
+              </div>
+            </div>
           </div>
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input type="password" id="password" value={password} onChange={e => setPassword(e.target.value)}
-              placeholder="At least 6 characters" required disabled={loading} />
+
+          <div className="field">
+            <label htmlFor="name">Full name</label>
+            <input id="name" className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Arda Ekici" required disabled={loading} />
           </div>
-          <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm Password</label>
-            <input type="password" id="confirmPassword" value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-              placeholder="Re-enter your password" required disabled={loading} />
+          <div className="field">
+            <label htmlFor="su-email">Work email</label>
+            <input id="su-email" className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" required disabled={loading} />
           </div>
-          <div className="form-group">
-            <label htmlFor="role">Role</label>
-            <select id="role" value={role} onChange={e => setRole(e.target.value as UserRole)} disabled={loading}>
-              <option value={USER_ROLES.EMPLOYEE}>Employee</option>
-              <option value={USER_ROLES.MANAGER}>Manager</option>
-            </select>
+          <div className="field">
+            <label htmlFor="su-password">Password</label>
+            <input id="su-password" type="password" className="input" value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 6 characters" required disabled={loading} />
           </div>
-          {role === 'employee' && (
-            <div className="form-group">
-              <label htmlFor="teamId">Team Code <span style={{ fontWeight: 'normal', color: 'var(--text-secondary)' }}>(optional)</span></label>
-              <input type="text" id="teamId" value={teamId} onChange={e => setTeamId(e.target.value)}
-                placeholder="UUID provided by your manager" disabled={loading} />
-              <span className="form-hint">Optional — you can also enter this later from your dashboard.</span>
+          <div className="field">
+            <label htmlFor="su-confirm">Confirm password</label>
+            <input id="su-confirm" type="password" className="input" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Re-enter your password" required disabled={loading} />
+          </div>
+
+          {role === USER_ROLES.EMPLOYEE && (
+            <div className="field">
+              <div className="row-between" style={{ gap: 8 }}>
+                <label>
+                  Team code{' '}
+                  <span style={{ color: 'var(--text-faint)', fontWeight: 400 }}>(optional)</span>
+                </label>
+                <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>Get this from your manager</span>
+              </div>
+              <input
+                className="input mono"
+                value={teamCode}
+                onChange={e => setTeamCode(e.target.value.toUpperCase())}
+                placeholder="e.g. PYM-734-AX9"
+                style={{ letterSpacing: '0.08em' }}
+                disabled={loading}
+              />
+              <div className="field-hint">
+                Join your team now to see events and contribute to analytics. You can also add this later from your dashboard.
+              </div>
             </div>
           )}
-          <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? 'Creating account...' : 'Sign Up'}
+
+          <button type="submit" className="btn btn-primary" style={{ padding: '10px 16px', width: '100%' }} disabled={loading}>
+            {loading ? 'Creating account…' : 'Create account'}
           </button>
+          <div style={{ fontSize: 11.5, color: 'var(--text-faint)', lineHeight: 1.5 }}>
+            By creating an account you agree to our{' '}
+            <a style={{ color: 'var(--accent)' }} href="#terms">Terms of Service</a> and{' '}
+            <a style={{ color: 'var(--accent)' }} href="#privacy">Privacy Policy</a>.
+          </div>
         </form>
 
-        <p className="auth-link">
-          Already have an account? <Link to={ROUTES.LOGIN}>Login</Link>
-        </p>
+        <div className="auth-foot">
+          Already have an account?{' '}
+          <button type="button" className="btn-link" style={{ fontSize: 13, fontWeight: 500 }} onClick={() => navigate(ROUTES.LOGIN)}>Sign in</button>
+        </div>
       </div>
     </div>
   );

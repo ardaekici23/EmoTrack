@@ -1,28 +1,36 @@
 import React, { useEffect, useState, FormEvent } from 'react';
 import { Team, TeamMember } from '../../domain/team/types';
 import { createTeam, getMyTeams, updateTeam, getTeamMembers, removeMember } from '../../infrastructure/api/teams';
+import { Avatar, getInitials } from '../shared/SharedComponents';
 
 export function TeamManagement() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [newTeamName, setNewTeamName] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newTeamName, setNewTeamName] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { loadTeams(); }, []);
 
   useEffect(() => {
-    loadTeams();
-  }, []);
+    if (teams.length > 0 && !selectedTeamId) {
+      handleSelectTeam(teams[0].teamId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teams]);
 
   async function loadTeams() {
     try {
       setLoading(true);
-      setTeams(await getMyTeams());
+      const t = await getMyTeams();
+      setTeams(t);
       setError(null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load teams');
@@ -39,8 +47,8 @@ export function TeamManagement() {
       const team = await createTeam({ name: newTeamName.trim() });
       setTeams(prev => [team, ...prev]);
       setNewTeamName('');
-      setSelectedTeamId(team.teamId);
-      setMembers([]);
+      setShowCreate(false);
+      handleSelectTeam(team.teamId);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create team');
     } finally {
@@ -48,19 +56,10 @@ export function TeamManagement() {
     }
   }
 
-  async function handleRename(teamId: string) {
-    if (!editName.trim()) return;
-    try {
-      const updated = await updateTeam(teamId, { name: editName.trim() });
-      setTeams(prev => prev.map(t => t.teamId === teamId ? { ...t, name: updated.name } : t));
-      setEditingTeamId(null);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to rename team');
-    }
-  }
-
   async function handleSelectTeam(teamId: string) {
     setSelectedTeamId(teamId);
+    const team = teams.find(t => t.teamId === teamId);
+    if (team) setEditName(team.name);
     try {
       setMembersLoading(true);
       setMembers(await getTeamMembers(teamId));
@@ -68,6 +67,19 @@ export function TeamManagement() {
       setMembers([]);
     } finally {
       setMembersLoading(false);
+    }
+  }
+
+  async function handleSaveName() {
+    if (!selectedTeamId || !editName.trim()) return;
+    try {
+      setSaving(true);
+      const updated = await updateTeam(selectedTeamId, { name: editName.trim() });
+      setTeams(prev => prev.map(t => t.teamId === selectedTeamId ? { ...t, name: updated.name } : t));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update team');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -81,112 +93,155 @@ export function TeamManagement() {
     }
   }
 
-  async function handleCopyCode(teamId: string) {
-    await navigator.clipboard.writeText(teamId);
-    setCopiedId(teamId);
+  async function handleCopyCode(code: string) {
+    await navigator.clipboard.writeText(code);
+    setCopiedId(code);
     setTimeout(() => setCopiedId(null), 2000);
   }
 
   const selectedTeam = teams.find(t => t.teamId === selectedTeamId);
 
+  if (loading) {
+    return <div className="loading-state"><div className="spinner" />Loading teams…</div>;
+  }
+
   return (
-    <div className="team-management">
-      {error && <div className="error-message">{error}</div>}
+    <div className="stack stack-4">
+      {error && <div className="error-banner">{error}</div>}
 
-      <section className="create-team-section">
-        <h3>Create New Team</h3>
-        <form onSubmit={handleCreate} className="inline-form">
-          <input
-            value={newTeamName}
-            onChange={e => setNewTeamName(e.target.value)}
-            placeholder="Team name"
-            disabled={creating}
-            className="inline-input"
-          />
-          <button type="submit" className="btn btn-primary" disabled={creating || !newTeamName.trim()}>
-            {creating ? 'Creating...' : 'Create Team'}
-          </button>
-        </form>
-      </section>
+      <div className="row-between">
+        <div className="row" style={{ gap: 10 }}>
+          <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-mute)' }}>Teams</span>
+          {teams.map(t => (
+            <button
+              key={t.teamId}
+              className={`chip${selectedTeamId === t.teamId ? ' on' : ''}`}
+              onClick={() => handleSelectTeam(t.teamId)}
+            >
+              {t.name}
+            </button>
+          ))}
+          {teams.length === 0 && <span style={{ fontSize: 13, color: 'var(--text-mute)' }}>No teams yet</span>}
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)}>+ New team</button>
+      </div>
 
-      <section className="teams-list-section">
-        <h3>Your Teams {loading && <span className="loading-inline">Loading...</span>}</h3>
-        {!loading && teams.length === 0 && (
-          <p className="info-text">No teams yet. Create one above to get started.</p>
-        )}
-        <div className="teams-list">
-          {teams.map(team => (
-            <div key={team.teamId} className={`team-card ${selectedTeamId === team.teamId ? 'selected' : ''}`}>
-              {editingTeamId === team.teamId ? (
-                <div className="team-edit-row">
-                  <input
-                    value={editName}
-                    onChange={e => setEditName(e.target.value)}
-                    className="inline-input"
-                    autoFocus
-                    onKeyDown={e => { if (e.key === 'Enter') handleRename(team.teamId); if (e.key === 'Escape') setEditingTeamId(null); }}
-                  />
-                  <button className="btn btn-primary btn-sm" onClick={() => handleRename(team.teamId)}>Save</button>
-                  <button className="btn btn-secondary btn-sm" onClick={() => setEditingTeamId(null)}>Cancel</button>
+      {selectedTeam && (
+        <div className="twocol-3-2">
+          {/* Members card */}
+          <div className="card">
+            <div className="card-head">
+              <div>
+                <div className="section-title">{selectedTeam.name}</div>
+                <div className="section-sub">
+                  {members.length} members · created {new Date(selectedTeam.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                 </div>
+              </div>
+            </div>
+            <div className="card-body">
+              {membersLoading ? (
+                <div className="loading-state"><div className="spinner" />Loading members…</div>
+              ) : members.length === 0 ? (
+                <div style={{ color: 'var(--text-mute)', fontSize: 13 }}>No members yet. Share the team code to onboard employees.</div>
               ) : (
-                <div className="team-info-row">
-                  <div className="team-info">
-                    <span className="team-name">{team.name}</span>
-                    <span className="team-member-count">{team.memberCount} members</span>
-                  </div>
-                  <div className="team-actions">
-                    <button className="btn btn-filter btn-sm" onClick={() => handleSelectTeam(team.teamId)}>
-                      Members
-                    </button>
-                    <button className="btn btn-filter btn-sm" onClick={() => { setEditingTeamId(team.teamId); setEditName(team.name); }}>
-                      Rename
-                    </button>
-                  </div>
+                <div className="team-roster">
+                  {members.map(m => (
+                    <div key={m.userId} className="member">
+                      <Avatar initials={getInitials(m.name)} size={32} />
+                      <div>
+                        <div className="member-name">{m.name}</div>
+                        <div className="member-meta">{m.email}</div>
+                      </div>
+                      <div />
+                      <div className="row" style={{ gap: 6 }}>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleRemoveMember(selectedTeam.teamId, m.userId)}>Remove</button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
-          ))}
-        </div>
-      </section>
-
-      {selectedTeamId && selectedTeam && (
-        <section className="team-members-section">
-          <h3>Members of "{selectedTeam.name}"</h3>
-          <div className="team-code-display">
-            <div>
-              <span className="team-code-label">Team Code (share with employees):</span>
-              <code className="team-code">{selectedTeamId}</code>
-            </div>
-            <button className="btn btn-filter btn-sm" onClick={() => handleCopyCode(selectedTeamId)}>
-              {copiedId === selectedTeamId ? 'Copied!' : 'Copy'}
-            </button>
           </div>
 
-          {membersLoading ? (
-            <p className="info-text">Loading members...</p>
-          ) : members.length === 0 ? (
-            <p className="info-text">No members yet. Share the team code above with your employees so they can sign up.</p>
-          ) : (
-            <div className="members-list">
-              {members.map(member => (
-                <div key={member.userId} className="member-row">
-                  <div className="member-info">
-                    <span className="member-name">{member.name}</span>
-                    <span className="member-email">{member.email}</span>
-                  </div>
-                  <button
-                    className="btn btn-sm"
-                    style={{ backgroundColor: '#ffebee', color: '#c62828', border: 'none' }}
-                    onClick={() => handleRemoveMember(selectedTeamId, member.userId)}
-                  >
-                    Remove
+          <div className="stack stack-4">
+            {/* Invite code */}
+            <div className="card">
+              <div className="card-head">
+                <div>
+                  <div className="section-title">Invite code</div>
+                  <div className="section-sub">Share with employees to onboard them</div>
+                </div>
+              </div>
+              <div className="card-body">
+                <div className="code-display">
+                  <span>{selectedTeam.teamId}</span>
+                  <button className="btn btn-ghost btn-sm" onClick={() => handleCopyCode(selectedTeam.teamId)}>
+                    {copiedId === selectedTeam.teamId ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
-              ))}
+                <p style={{ fontSize: 12.5, color: 'var(--text-mute)', marginTop: 12, lineHeight: 1.55 }}>
+                  Employees enter this code when signing up or from their dashboard.
+                </p>
+              </div>
             </div>
-          )}
-        </section>
+
+            {/* Settings */}
+            <div className="card">
+              <div className="card-head">
+                <div>
+                  <div className="section-title">Team settings</div>
+                  <div className="section-sub">Update name or remove team</div>
+                </div>
+              </div>
+              <div className="card-body">
+                <div className="field">
+                  <label>Team name</label>
+                  <input className="input" value={editName} onChange={e => setEditName(e.target.value)} />
+                </div>
+                <div className="row" style={{ marginTop: 16, gap: 8 }}>
+                  <button className="btn btn-primary btn-sm" disabled={saving} onClick={handleSaveName}>
+                    {saving ? 'Saving…' : 'Save changes'}
+                  </button>
+                  <button className="btn btn-danger btn-sm">Delete team</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!selectedTeam && !loading && (
+        <div className="card-inset muted" style={{ textAlign: 'center', padding: 32 }}>
+          Create a team above to get started.
+        </div>
+      )}
+
+      {showCreate && (
+        <div className="modal-veil" onClick={() => setShowCreate(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <div className="modal-title">Create a new team</div>
+                <div className="modal-sub">Teams group employees so analytics stay scoped and private.</div>
+              </div>
+              <button className="modal-close" onClick={() => setShowCreate(false)}>✕</button>
+            </div>
+            <form onSubmit={handleCreate}>
+              <div className="modal-body">
+                <div className="field">
+                  <label>Team name</label>
+                  <input className="input" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} placeholder="e.g. Mobile Engineering" autoFocus required />
+                </div>
+              </div>
+              <div className="modal-foot">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowCreate(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={creating || !newTeamName.trim()}>
+                  {creating ? 'Creating…' : 'Create team'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

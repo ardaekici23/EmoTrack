@@ -1,33 +1,37 @@
 import React, { useEffect, useState } from 'react';
 import { TeamEvent, EventResults as EventResultsType } from '../../domain/event/types';
-import { getActiveEvents, joinEvent, leaveEvent, getEventResults } from '../../infrastructure/api/events';
+import { getActiveEvents, getScheduledEvents, joinEvent, leaveEvent } from '../../infrastructure/api/events';
 import { EventDetector } from './EventDetector';
 import { EventResults } from '../shared/EventResults';
 
 export function EventsTab() {
-  const [activeEvents, setActiveEvents] = useState<TeamEvent[]>([]);
+  const [events, setEvents] = useState<TeamEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [joinedEventId, setJoinedEventId] = useState<string | null>(null);
   const [results, setResults] = useState<EventResultsType | null>(null);
-  const [resultsLoading, setResultsLoading] = useState(false);
 
   useEffect(() => {
     fetchActive();
-    const interval = setInterval(fetchActive, 30000);
-    return () => clearInterval(interval);
+    const id = setInterval(fetchActive, 30000);
+    return () => clearInterval(id);
   }, []);
 
-  // If the event we're in disappears from active list, auto-leave
   useEffect(() => {
-    if (joinedEventId && !activeEvents.find(e => e.eventId === joinedEventId)) {
+    if (joinedEventId && !events.find(e => e.eventId === joinedEventId)) {
       setJoinedEventId(null);
     }
-  }, [activeEvents, joinedEventId]);
+  }, [events, joinedEventId]);
 
   async function fetchActive() {
     try {
-      setActiveEvents(await getActiveEvents());
+      const [active, scheduled] = await Promise.allSettled([
+        getActiveEvents(),
+        getScheduledEvents(),
+      ]);
+      const activeList = active.status === 'fulfilled' ? active.value : [];
+      const scheduledList = scheduled.status === 'fulfilled' ? scheduled.value : [];
+      setEvents([...activeList, ...scheduledList]);
       setError(null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to fetch events');
@@ -39,9 +43,7 @@ export function EventsTab() {
   async function handleJoin(eventId: string) {
     try {
       await joinEvent(eventId);
-      setActiveEvents(prev =>
-        prev.map(e => e.eventId === eventId ? { ...e, hasJoined: true, participantCount: e.participantCount + 1 } : e)
-      );
+      setEvents(prev => prev.map(e => e.eventId === eventId ? { ...e, hasJoined: true, participantCount: e.participantCount + 1 } : e));
       setJoinedEventId(eventId);
       setResults(null);
     } catch (err: unknown) {
@@ -52,91 +54,124 @@ export function EventsTab() {
   async function handleLeave(eventId: string) {
     try {
       await leaveEvent(eventId);
-      setActiveEvents(prev =>
-        prev.map(e => e.eventId === eventId ? { ...e, hasJoined: false, participantCount: Math.max(0, e.participantCount - 1) } : e)
-      );
+      setEvents(prev => prev.map(e => e.eventId === eventId ? { ...e, hasJoined: false, participantCount: Math.max(0, e.participantCount - 1) } : e));
       setJoinedEventId(null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to leave event');
     }
   }
 
-  async function handleViewResults(eventId: string) {
-    try {
-      setResultsLoading(true);
-      setResults(await getEventResults(eventId));
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load results');
-    } finally {
-      setResultsLoading(false);
-    }
+  const live = events.filter(e => e.status === 'active');
+  const upcoming = events.filter(e => e.status === 'scheduled');
+  const past = events.filter(e => e.status === 'ended');
+
+  function EventCard({ e }: { e: TeamEvent }) {
+    const date = new Date(e.scheduledAt || e.startedAt || Date.now());
+    return (
+      <div className="event">
+        <div className="event-date">
+          <div className="d">{date.getDate()}</div>
+          <div className="m">{date.toLocaleString('en-GB', { month: 'short' })}</div>
+        </div>
+        <div className="event-body">
+          <div className="event-title">{e.title}</div>
+          <div className="event-meta-row">
+            {e.participantCount} participants · {date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+            {e.hasJoined && <span style={{ color: 'var(--positive)', fontWeight: 500, marginLeft: 8 }}>· Joined</span>}
+          </div>
+        </div>
+        <div className="row" style={{ gap: 8 }}>
+          <span className={`status-pill ${e.status}`}>{e.status}</span>
+          {e.status === 'active' && !e.hasJoined && (
+            <button className="btn btn-primary btn-sm" onClick={() => handleJoin(e.eventId)}>Join session</button>
+          )}
+          {e.status === 'active' && e.hasJoined && (
+            <button className="btn btn-ghost btn-sm" onClick={() => handleLeave(e.eventId)}>Leave</button>
+          )}
+          {e.status === 'scheduled' && (
+            <button className="btn btn-ghost btn-sm">Add to calendar</button>
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="events-tab">
-      {error && <div className="error-message">{error}</div>}
-
-      <section className="active-events-section">
-        <div className="section-header">
-          <h3>Active Events for Your Team</h3>
-          <button className="btn btn-filter btn-sm" onClick={fetchActive}>Refresh</button>
+    <div className="stack stack-6">
+      <div className="row-between">
+        <div style={{ fontSize: 13, color: 'var(--text-mute)' }}>
+          {loading ? 'Refreshing…' : `${events.length} event${events.length !== 1 ? 's' : ''} for your team`}
         </div>
+        <button className="btn btn-ghost btn-sm" onClick={fetchActive} disabled={loading}>
+          ↻ Refresh
+        </button>
+      </div>
 
-        {loading && <p className="info-text">Loading events...</p>}
+      {error && <div className="error-banner">{error}</div>}
 
-        {!loading && activeEvents.length === 0 && (
-          <div className="empty-state">
-            <p>No active events right now.</p>
-            <p className="info-text">When your manager starts an event, it will appear here.</p>
+      {live.length > 0 && (
+        <div>
+          <div className="row-between" style={{ marginBottom: 12 }}>
+            <div className="section-title">Live now</div>
+            <span className="tab-count">{live.length}</span>
           </div>
-        )}
-
-        <div className="events-list">
-          {activeEvents.map(event => (
-            <div key={event.eventId} className={`event-card ${event.hasJoined ? 'joined' : ''}`}>
-              <div className="event-card-header">
-                <div className="event-title-row">
-                  <h4 className="event-title">{event.title}</h4>
-                  <span className="badge badge-active">Live</span>
-                  {event.hasJoined && <span className="badge badge-joined">Joined</span>}
-                </div>
-                <span className="info-text">{event.participantCount} participants</span>
-              </div>
-              <div className="event-card-actions">
-                {event.hasJoined ? (
-                  <button className="btn btn-secondary btn-sm" onClick={() => handleLeave(event.eventId)}>
-                    Leave Event
-                  </button>
-                ) : (
-                  <button className="btn btn-primary btn-sm" onClick={() => handleJoin(event.eventId)}>
-                    Join & Track Emotions
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+          <div className="evlist">{live.map(e => <EventCard key={e.eventId} e={e} />)}</div>
         </div>
-      </section>
+      )}
 
       {joinedEventId && (
-        <section className="event-detection-section">
-          <h3>Emotion Tracking — Event Active</h3>
-          <p className="info-text">Your emotions are being recorded for this event. Leave the event when it ends.</p>
-          <EventDetector eventId={joinedEventId} />
-        </section>
+        <div className="card">
+          <div className="card-head">
+            <div>
+              <div className="section-title">Emotion tracking — event active</div>
+              <div className="section-sub">Your emotions are being recorded. Leave the event when it ends.</div>
+            </div>
+          </div>
+          <div className="card-body">
+            <EventDetector eventId={joinedEventId} />
+          </div>
+        </div>
       )}
 
-      {resultsLoading && (
-        <div className="loading-container"><div className="loading-spinner" /><p>Loading results...</p></div>
-      )}
-      {results && !resultsLoading && (
-        <section className="results-section">
-          <div className="results-header">
-            <h3>Event Results</h3>
-            <button className="btn btn-filter btn-sm" onClick={() => setResults(null)}>Close</button>
+      <div>
+        <div className="row-between" style={{ marginBottom: 12 }}>
+          <div className="section-title">Upcoming events</div>
+          <span className="tab-count">{upcoming.length}</span>
+        </div>
+        {loading ? (
+          <div className="loading-state"><div className="spinner" />Loading events…</div>
+        ) : upcoming.length === 0 ? (
+          <div className="card-inset muted">No upcoming events scheduled for your team.</div>
+        ) : (
+          <div className="evlist">{upcoming.map(e => <EventCard key={e.eventId} e={e} />)}</div>
+        )}
+      </div>
+
+      {past.length > 0 && (
+        <div>
+          <div className="row-between" style={{ marginBottom: 12 }}>
+            <div className="section-title">Past events</div>
+            <span className="tab-count">{past.length}</span>
           </div>
-          <EventResults results={results} />
-        </section>
+          <div className="evlist">{past.map(e => <EventCard key={e.eventId} e={e} />)}</div>
+        </div>
+      )}
+
+      {results && (
+        <div className="modal-veil" onClick={() => setResults(null)}>
+          <div className="modal" style={{ maxWidth: 920, maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <div><div className="modal-title">Event Results</div></div>
+              <button className="modal-close" onClick={() => setResults(null)}>✕</button>
+            </div>
+            <div className="modal-body" style={{ overflow: 'auto', maxHeight: 'calc(90vh - 130px)' }}>
+              <EventResults results={results} />
+            </div>
+            <div className="modal-foot">
+              <button className="btn btn-ghost btn-sm" onClick={() => setResults(null)}>Close</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

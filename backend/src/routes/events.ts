@@ -91,6 +91,30 @@ router.get('/active', requireAuth, async (req: AuthRequest, res: Response) => {
   }
 });
 
+router.get('/scheduled', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { rows: userRows } = await pool.query('SELECT team_id FROM users WHERE id = $1', [req.userId]);
+    const userTeamId = userRows[0]?.team_id;
+    if (!userTeamId) { res.json([]); return; }
+
+    const { rows } = await pool.query(
+      `SELECT e.id, e.title, e.manager_id, e.team_id, e.status,
+              e.scheduled_at, e.started_at, e.ended_at, e.created_at,
+              COUNT(ep.user_id)::int AS participant_count,
+              false AS has_joined
+       FROM events e
+       LEFT JOIN event_participants ep ON ep.event_id = e.id
+       WHERE e.team_id::text = $1 AND e.status = 'scheduled'
+       GROUP BY e.id
+       ORDER BY e.scheduled_at ASC`,
+      [userTeamId]
+    );
+    res.json(rows.map(rowToEvent));
+  } catch {
+    res.status(500).json({ error: 'Failed to fetch scheduled events' });
+  }
+});
+
 router.get('/:eventId', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { rows } = await pool.query(

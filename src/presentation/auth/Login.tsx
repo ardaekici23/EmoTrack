@@ -1,12 +1,14 @@
 import React, { useState, FormEvent } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { signIn } from '../../infrastructure/api/auth';
 import { useAuth } from '../../application/contexts/AuthContext';
 import { ROUTES } from '../../shared/constants';
+import { Icon } from '../shared/Icons';
 
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -28,38 +30,82 @@ export function Login() {
   }
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <h2>Login to EmoTrack</h2>
-        <p className="auth-subtitle">Track emotional well-being for remote teams</p>
+    <div className="auth-shell">
+      <div className="auth-canvas">
+        <div className="auth-brand">
+          <div className="auth-brand-logo">E</div>
+          <span>EmoTrack</span>
+        </div>
 
-        {error && <div className="error-message">{error}</div>}
+        <div className="auth-hero">
+          <div>
+            <div className="auth-hero-title">Unlock your remote team's potential &amp; happiness with EmoTrack.</div>
+            <div className="auth-hero-body" style={{ marginTop: 16 }}>
+              Stay connected, measure mood, improve collaboration, and boost performance. The ultimate toolkit for modern distributed teams.
+            </div>
+          </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              type="email" id="email" value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="Enter your email" required disabled={loading}
-            />
+          <div className="stack stack-4">
+            <div className="auth-feature">
+              <div className="auth-feature-icon"><Icon.Smile /></div>
+              <div>
+                <div className="auth-feature-title">Daily mood check-ins</div>
+                <div className="auth-feature-desc">Understand team morale daily — detection runs in the browser, never on a server.</div>
+              </div>
+            </div>
+            <div className="auth-feature">
+              <div className="auth-feature-icon"><Icon.Network /></div>
+              <div>
+                <div className="auth-feature-title">Collaboration analytics</div>
+                <div className="auth-feature-desc">Measure engagement and connection across remote and hybrid teams.</div>
+              </div>
+            </div>
+            <div className="auth-feature">
+              <div className="auth-feature-icon"><Icon.TrendUp /></div>
+              <div>
+                <div className="auth-feature-title">Performance insights</div>
+                <div className="auth-feature-desc">Track productivity and goals with privacy-respecting aggregate signals.</div>
+              </div>
+            </div>
           </div>
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              type="password" id="password" value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Enter your password" required disabled={loading}
-            />
+
+          <div className="auth-legal">© 2026 EmoTrack, Inc. · Privacy · Terms · DPA</div>
+        </div>
+      </div>
+
+      <div className="auth-panel">
+        <div className="auth-panel-head">
+          <div className="auth-panel-title">Sign in to your workspace</div>
+          <div className="auth-panel-sub">Use your company email to continue.</div>
+        </div>
+
+        {error && <div className="error-banner">{error}</div>}
+
+        <form className="stack stack-4" onSubmit={handleSubmit}>
+          <div className="field">
+            <label htmlFor="email">Work email</label>
+            <input id="email" className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" required disabled={loading} />
           </div>
-          <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? 'Logging in...' : 'Login'}
+          <div className="field">
+            <div className="row-between" style={{ gap: 8 }}>
+              <label htmlFor="password">Password</label>
+              <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 500, cursor: 'pointer' }}>Forgot password?</span>
+            </div>
+            <input id="password" type="password" className="input" value={password} onChange={e => setPassword(e.target.value)} required disabled={loading} />
+          </div>
+          <label className="row" style={{ gap: 8, fontSize: 13, color: 'var(--text-mute)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />
+            Keep me signed in on this device
+          </label>
+          <button type="submit" className="btn btn-primary" style={{ padding: '10px 16px', width: '100%' }} disabled={loading}>
+            {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
 
-        <p className="auth-link">
-          Don't have an account? <Link to={ROUTES.SIGNUP}>Sign up</Link>
-        </p>
+        <div className="auth-foot">
+          New to EmoTrack?{' '}
+          <button type="button" className="btn-link" style={{ fontSize: 13, fontWeight: 500 }} onClick={() => navigate(ROUTES.SIGNUP)}>Create an account</button>
+        </div>
       </div>
     </div>
   );

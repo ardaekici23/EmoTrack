@@ -5,17 +5,12 @@ import { getMyTeams } from '../../infrastructure/api/teams';
 import { createEvent, getMyEvents, startEvent, endEvent, getEventResults } from '../../infrastructure/api/events';
 import { EventResults } from '../shared/EventResults';
 
-const STATUS_LABELS: Record<string, string> = {
-  scheduled: 'Scheduled',
-  active: 'Active',
-  ended: 'Ended',
-};
-
 export function EventManagement() {
   const [events, setEvents] = useState<TeamEvent[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
   const [title, setTitle] = useState('');
   const [teamId, setTeamId] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
@@ -39,6 +34,7 @@ export function EventManagement() {
       }
     }
     load();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleCreate(e: FormEvent) {
@@ -46,14 +42,11 @@ export function EventManagement() {
     if (!title.trim() || !teamId) return;
     try {
       setCreating(true);
-      const event = await createEvent({
-        title: title.trim(),
-        teamId,
-        scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
-      });
+      const event = await createEvent({ title: title.trim(), teamId, scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined });
       setEvents(prev => [event, ...prev]);
       setTitle('');
       setScheduledAt('');
+      setShowCreate(false);
       setError(null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create event');
@@ -91,114 +84,146 @@ export function EventManagement() {
     }
   }
 
+  const live = events.filter(e => e.status === 'active');
+  const upcoming = events.filter(e => e.status === 'scheduled');
+  const past = events.filter(e => e.status === 'ended');
+
+  function EventRow({ e }: { e: TeamEvent }) {
+    const date = new Date(e.scheduledAt || e.startedAt || Date.now());
+    const team = teams.find(t => t.teamId === e.teamId);
+    return (
+      <div className="event">
+        <div className="event-date">
+          <div className="d">{date.getDate()}</div>
+          <div className="m">{date.toLocaleString('en-GB', { month: 'short' })}</div>
+        </div>
+        <div className="event-body">
+          <div className="event-title">{e.title}</div>
+          <div className="event-meta-row">
+            {team?.name} · {e.participantCount} participants · {date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+            {e.status === 'ended' && e.endedAt && ` — ${new Date(e.endedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`}
+          </div>
+        </div>
+        <div className="row" style={{ gap: 8 }}>
+          <span className={`status-pill ${e.status}`}>{e.status}</span>
+          {e.status === 'scheduled' && <button className="btn btn-primary btn-sm" onClick={() => handleStart(e.eventId)}>Start</button>}
+          {e.status === 'active' && <button className="btn btn-ghost btn-sm" onClick={() => handleEnd(e.eventId)}>End</button>}
+          {e.status === 'ended' && <button className="btn btn-ghost btn-sm" onClick={() => handleViewResults(e.eventId)}>View results →</button>}
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
-    return <div className="loading-container"><div className="loading-spinner" /><p>Loading events...</p></div>;
+    return <div className="loading-state"><div className="spinner" />Loading events…</div>;
   }
 
   return (
-    <div className="event-management">
-      {error && <div className="error-message">{error}</div>}
+    <div className="stack stack-6">
+      {error && <div className="error-banner">{error}</div>}
 
-      <section className="create-event-section">
-        <h3>Create New Event</h3>
-        {teams.length === 0 ? (
-          <p className="info-text">Create a team first before scheduling events.</p>
-        ) : (
-          <form onSubmit={handleCreate} className="create-event-form">
-            <div className="form-row">
-              <div className="form-group">
-                <label>Event Title</label>
-                <input
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  placeholder="e.g. Weekly standup"
-                  disabled={creating}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Team</label>
-                <select value={teamId} onChange={e => setTeamId(e.target.value)} disabled={creating}>
-                  {teams.map(t => <option key={t.teamId} value={t.teamId}>{t.name}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Scheduled Time (optional)</label>
-                <input
-                  type="datetime-local"
-                  value={scheduledAt}
-                  onChange={e => setScheduledAt(e.target.value)}
-                  disabled={creating}
-                />
-              </div>
-            </div>
-            <button type="submit" className="btn btn-primary" disabled={creating || !title.trim()}>
-              {creating ? 'Creating...' : 'Create Event'}
-            </button>
-          </form>
-        )}
-      </section>
+      <div className="row-between">
+        <div>
+          <div className="section-title">Sessions</div>
+          <div className="section-sub">Schedule emotion-tracked sessions for meetings, retrospectives, or workshops</div>
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)}>+ Create event</button>
+      </div>
 
-      <section className="events-list-section">
-        <h3>Your Events</h3>
-        {events.length === 0 ? (
-          <p className="info-text">No events yet. Create one above.</p>
-        ) : (
-          <div className="events-list">
-            {events.map(event => (
-              <div key={event.eventId} className="event-card">
-                <div className="event-card-header">
-                  <div className="event-title-row">
-                    <h4 className="event-title">{event.title}</h4>
-                    <span className={`badge badge-${event.status}`}>{STATUS_LABELS[event.status]}</span>
-                  </div>
-                  <div className="event-meta-row">
-                    <span>{event.participantCount} participants</span>
-                    {event.scheduledAt && (
-                      <span>Scheduled: {new Date(event.scheduledAt).toLocaleString()}</span>
-                    )}
-                    {event.startedAt && (
-                      <span>Started: {new Date(event.startedAt).toLocaleTimeString()}</span>
-                    )}
-                    {event.endedAt && (
-                      <span>Ended: {new Date(event.endedAt).toLocaleTimeString()}</span>
-                    )}
-                  </div>
-                </div>
-                <div className="event-card-actions">
-                  {event.status === 'scheduled' && (
-                    <button className="btn btn-primary btn-sm" onClick={() => handleStart(event.eventId)}>
-                      Start Event
-                    </button>
-                  )}
-                  {event.status === 'active' && (
-                    <button className="btn btn-secondary btn-sm" onClick={() => handleEnd(event.eventId)}>
-                      End Event
-                    </button>
-                  )}
-                  {event.status === 'ended' && (
-                    <button className="btn btn-filter btn-sm" onClick={() => handleViewResults(event.eventId)}>
-                      View Results
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+      {live.length > 0 && (
+        <div>
+          <div className="row-between" style={{ marginBottom: 12 }}>
+            <div className="section-title" style={{ fontSize: 14 }}>Live now</div>
+            <span className="tab-count">{live.length}</span>
           </div>
-        )}
-      </section>
-
-      {resultsLoading && (
-        <div className="loading-container"><div className="loading-spinner" /><p>Loading results...</p></div>
+          <div className="evlist">{live.map(e => <EventRow key={e.eventId} e={e} />)}</div>
+        </div>
       )}
-      {results && !resultsLoading && (
-        <section className="results-section">
-          <div className="results-header">
-            <h3>Event Results</h3>
-            <button className="btn btn-filter btn-sm" onClick={() => setResults(null)}>Close</button>
+
+      <div>
+        <div className="row-between" style={{ marginBottom: 12 }}>
+          <div className="section-title" style={{ fontSize: 14 }}>Upcoming</div>
+          <span className="tab-count">{upcoming.length}</span>
+        </div>
+        {upcoming.length === 0 ? (
+          <div className="card-inset muted">Nothing scheduled.</div>
+        ) : (
+          <div className="evlist">{upcoming.map(e => <EventRow key={e.eventId} e={e} />)}</div>
+        )}
+      </div>
+
+      <div>
+        <div className="row-between" style={{ marginBottom: 12 }}>
+          <div className="section-title" style={{ fontSize: 14 }}>Past</div>
+          <span className="tab-count">{past.length}</span>
+        </div>
+        {past.length === 0 ? (
+          <div className="card-inset muted">No past events.</div>
+        ) : (
+          <div className="evlist">{past.map(e => <EventRow key={e.eventId} e={e} />)}</div>
+        )}
+      </div>
+
+      {showCreate && (
+        <div className="modal-veil" onClick={() => setShowCreate(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <div className="modal-title">Schedule a new event</div>
+                <div className="modal-sub">Emotion data is recorded only while the event is active.</div>
+              </div>
+              <button className="modal-close" onClick={() => setShowCreate(false)}>✕</button>
+            </div>
+            <form onSubmit={handleCreate}>
+              <div className="modal-body">
+                <div className="field">
+                  <label>Event title</label>
+                  <input className="input" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Weekly standup" autoFocus required />
+                </div>
+                <div className="row" style={{ gap: 12 }}>
+                  <div className="field grow">
+                    <label>Team</label>
+                    <select className="select" value={teamId} onChange={e => setTeamId(e.target.value)}>
+                      {teams.map(t => <option key={t.teamId} value={t.teamId}>{t.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="field grow">
+                    <label>Scheduled time <span style={{ color: 'var(--text-faint)', fontWeight: 400 }}>(optional)</span></label>
+                    <input className="input" type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-foot">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowCreate(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={creating || !title.trim()}>
+                  {creating ? 'Creating…' : 'Create event'}
+                </button>
+              </div>
+            </form>
           </div>
-          <EventResults results={results} />
-        </section>
+        </div>
+      )}
+
+      {resultsLoading && <div className="loading-state"><div className="spinner" />Loading results…</div>}
+
+      {results && !resultsLoading && (
+        <div className="modal-veil" onClick={() => setResults(null)}>
+          <div className="modal" style={{ maxWidth: 920, maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <div className="modal-title">{results.title} · results</div>
+                <div className="modal-sub">{results.participants.length} participants</div>
+              </div>
+              <button className="modal-close" onClick={() => setResults(null)}>✕</button>
+            </div>
+            <div className="modal-body" style={{ overflow: 'auto', maxHeight: 'calc(90vh - 130px)' }}>
+              <EventResults results={results} />
+            </div>
+            <div className="modal-foot">
+              <button className="btn btn-ghost btn-sm" onClick={() => setResults(null)}>Close</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

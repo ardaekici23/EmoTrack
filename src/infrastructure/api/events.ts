@@ -20,6 +20,10 @@ export async function getActiveEvents(): Promise<TeamEvent[]> {
   return apiFetch<TeamEvent[]>('/events/active');
 }
 
+export async function getScheduledEvents(): Promise<TeamEvent[]> {
+  return apiFetch<TeamEvent[]>('/events/scheduled');
+}
+
 export async function startEvent(eventId: string): Promise<TeamEvent> {
   return apiFetch<TeamEvent>(`/events/${eventId}/start`, { method: 'PATCH' });
 }
